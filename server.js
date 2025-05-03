@@ -6,6 +6,9 @@ const mongoose = require('mongoose');      // To connect and work with MongoDB
 const cors = require('cors');              // To handle requests from frontend (React)
 const dotenv = require('dotenv');          // To use environment variables from .env file
 
+// Import inventory routes
+const inventoryRoutes = require('./routes/inventoryRoutes'); 
+
 // Configure dotenv to read .env variables
 dotenv.config();
 
@@ -15,6 +18,9 @@ const app = express();
 // Middlewares
 app.use(cors());                           // Allow cross-origin requests
 app.use(express.json());                   // Allow receiving JSON data from frontend
+
+// Use Routes
+app.use('/api/inventory', inventoryRoutes);
 
 // Set up a test route to check if server is working
 app.get('/', (req, res) => {
