@@ -20,4 +20,18 @@ router.post('/add', async (req, res) => {
   }
 });
 
+// GET route to fetch all inventory items
+router.get('/all', async (req, res) => {
+    try {
+      // Fetch all inventory items from the database
+      const inventoryItems = await Inventory.find().sort({ purchaseDate: -1 }); // sorted by most recent
+  
+      // Send the fetched items as JSON
+      res.status(200).json(inventoryItems);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch inventory items' });
+    }
+  });
+  
+
 module.exports = router;
