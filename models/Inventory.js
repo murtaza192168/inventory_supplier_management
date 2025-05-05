@@ -8,16 +8,16 @@ const inventorySchema = new mongoose.Schema({
   brand: { type: String },
   weight: { type: String },
   quantity: { type: Number, required: true },
-  ratePerUnit: { type: Number, required: true },
-  gstPercent: { type: Number, enum: [5, 12, 18], required: true },
+  // ratePerUnit: { type: Number, required: true },
+  // gstPercent: { type: Number, enum: [5, 12, 18], required: true },
   supplierName: { type: String, required: true },
   purchaseDate: { type: Date, default: Date.now },
-  totalAmount: { type: Number }, // Calculated
-  note: { type: String },
-  paymentMode: { type: String, enum: ['Cash', 'Cheque', 'UPI'] },
-  chequeNumber: { type: String }, // Optional, only if paymentMode is Cheque
-  paymentStatus: { type: String, enum: ['Paid', 'Partial', 'Unpaid'], default: 'Unpaid' },
-  creditNote: { type: String }
+  // totalAmount: { type: Number }, // Calculated 
+  // note: { type: String },
+  // paymentMode: { type: String, enum: ['Cash', 'Cheque', 'UPI'] }, 
+  // chequeNumber: { type: String }, // Optional, only if paymentMode is Cheque 
+  // paymentStatus: { type: String, enum: ['Paid', 'Partial', 'Unpaid'], default: 'Unpaid' }, 
+  // creditNote: { type: String } 
 });
 
 // Pre-save hook to calculate total amount (excluding GST)
