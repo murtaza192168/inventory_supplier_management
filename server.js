@@ -8,6 +8,7 @@ const dotenv = require('dotenv');          // To use environment variables from 
 
 // Import inventory routes
 const inventoryRoutes = require('./routes/inventoryRoutes'); 
+// const SupplierRoutes = require('./routes/SupplierRoutes');
 
 // Configure dotenv to read .env variables
 dotenv.config();
@@ -21,6 +22,11 @@ app.use(express.json());                   // Allow receiving JSON data from fro
 
 // Use Routes
 app.use('/api/inventory', inventoryRoutes);
+
+// Import the supplier model
+const Supplier = require('./models/Supplier');
+
+
 
 // Set up a test route to check if server is working
 app.get('/', (req, res) => {
