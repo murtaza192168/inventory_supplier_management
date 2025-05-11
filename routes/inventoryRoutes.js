@@ -1,37 +1,61 @@
-// routes/inventoryRoutes.js
+// routes/inventory.js
 
 const express = require('express');
 const router = express.Router();
 const Inventory = require('../models/Inventory');
 
-// POST route to add new inventory item
+// CREATE - Add a new inventory item
 router.post('/add', async (req, res) => {
   try {
-    // Create a new Inventory document from the request body
     const newItem = new Inventory(req.body);
-
-    // Save to MongoDB
-    await newItem.save();
-
-    // Return success response
-    res.status(201).json({ message: 'Inventory item added successfully', data: newItem });
+    const savedItem = await newItem.save();
+    res.status(201).json(savedItem);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// GET route to fetch all inventory items
-router.get('/all', async (req, res) => {
-    try {
-      // Fetch all inventory items from the database
-      const inventoryItems = await Inventory.find().sort({ purchaseDate: -1 }); // sorted by most recent
-  
-      // Send the fetched items as JSON
-      res.status(200).json(inventoryItems);
-    } catch (error) {
-      res.status(500).json({ error: 'Failed to fetch inventory items' });
-    }
-  });
-  
+// READ - Get all inventory items with optional filters
+router.get('/', async (req, res) => {
+  try {
+    const filter = {};
+    const { brand, productName, supplierId } = req.query;
+
+    if (brand) filter.brand = brand;
+    if (productName) filter.productName = new RegExp(productName, 'i'); // case-insensitive match
+    if (supplierId) filter.supplierId = supplierId;
+
+    const items = await Inventory.find(filter).populate('supplierId');
+    res.json(items);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// UPDATE - Update an inventory item
+router.put('/:id', async (req, res) => {
+  try {
+    const updatedItem = await Inventory.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+    if (!updatedItem) return res.status(404).json({ error: 'Item not found' });
+    res.json(updatedItem);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// DELETE - Remove an inventory item
+router.delete('/:id', async (req, res) => {
+  try {
+    const deletedItem = await Inventory.findByIdAndDelete(req.params.id);
+    if (!deletedItem) return res.status(404).json({ error: 'Item not found' });
+    res.json({ message: 'Item deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;
