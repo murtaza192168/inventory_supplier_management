@@ -22,10 +22,9 @@ app.use(express.json());                   // Allow receiving JSON data from fro
 
 // Use Routes
 app.use('/api/inventory', inventoryRoutes);
-app.use('/api/suppliers', supplierRoutes);
+app.use('/api/suppliers', SupplierRoutes);
 
-// Import the supplier model
-const Supplier = require('./models/Supplier');
+
 
 
 

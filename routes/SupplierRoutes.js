@@ -46,5 +46,42 @@ router.put('/:id/payment', async (req, res) => {
     res.status(500).json({ message: 'Error updating payment', error });
   }
 });
+// Delete a supplier by ID
+router.delete('/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      await Supplier.findByIdAndDelete(id);
+      res.status(200).json({ message: 'Supplier deleted successfully' });
+    } catch (error) {
+      res.status(500).json({ error: 'Error deleting supplier' });
+    }
+  });
+ // Update a supplier by ID
+router.put('/:id', async (req, res) => {
+    try {
+      const updatedSupplier = await Supplier.findByIdAndUpdate(
+        req.params.id,
+        {
+          $set: {
+            name: req.body.name,
+            contact: req.body.contact,
+            email: req.body.email,
+            address: req.body.address
+          }
+        },
+        { new: true }
+      );
+  
+      if (!updatedSupplier) {
+        return res.status(404).json({ message: 'Supplier not found' });
+      }
+  
+      res.status(200).json(updatedSupplier);
+    } catch (error) {
+      console.error('Error updating supplier:', error);
+      res.status(500).json({ message: 'Server error while updating supplier' });
+    }
+  });
+   
 
 module.exports = router;
