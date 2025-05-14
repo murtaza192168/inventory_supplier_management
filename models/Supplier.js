@@ -1,24 +1,38 @@
-// Import mongoose
-const mongoose = require("mongoose");
+// models/Supplier.js
 
-// Define schema
+const mongoose = require('mongoose');
+
 const supplierSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  contact: { type: String },
-  address: { type: String },
-  gstNumber: { type: String },
-  paymentHistory: [
-    {
-      amount: Number,
-      modeOfPayment: String, // e.g., cash, cheque, upi
-      reference: String, // e.g., cheque no., UPI ref
-      date: Date,
-      note: String
-    }
-  ],
-  totalDue: { type: Number, default: 0 },
-  createdAt: { type: Date, default: Date.now }
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  contact: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  email: {
+    type: String,
+    trim: true
+  },
+  address: {
+    type: String,
+    required: true
+  },
+  gstNumber: {
+    type: String,
+    trim: true
+  },
+  companyName: {
+    type: String,
+    trim: true
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  }
 });
 
-// Export model
-module.exports = mongoose.model("Supplier", supplierSchema);
+module.exports = mongoose.model('Supplier', supplierSchema);

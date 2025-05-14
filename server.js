@@ -6,23 +6,21 @@ const mongoose = require('mongoose');      // To connect and work with MongoDB
 const cors = require('cors');              // To handle requests from frontend (React)
 const dotenv = require('dotenv');          // To use environment variables from .env file
 
-// Import inventory routes
-const inventoryRoutes = require('./routes/inventoryRoutes'); 
-const SupplierRoutes = require('./routes/SupplierRoutes');
+
 
 // Configure dotenv to read .env variables
 dotenv.config();
 
 // Initialize express app
 const app = express();
-
+// Import supplier routes
+const supplierRoutes = require('./routes/SupplierRoutes');
 // Middlewares
 app.use(cors());                           // Allow cross-origin requests
 app.use(express.json());                   // Allow receiving JSON data from frontend
 
 // Use Routes
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/suppliers', SupplierRoutes);
+
 
 
 
@@ -42,6 +40,8 @@ mongoose.connect(process.env.MONGO_URL, {
 }).catch((err) => {
   console.log('Error connecting to MongoDB:', err);
 });
+
+app.use('/api/suppliers', supplierRoutes);
 
 // Define a port (default to 5000 if not specified in .env)
 const PORT = process.env.PORT || 5000;
