@@ -1,10 +1,35 @@
+// supplierPaymentController.js
 const SupplierPayment = require('../models/SupplierPayment');
+const Inventory = require('../models/Inventory');
 
 // Add a new payment
 exports.addPayment = async (req, res) => {
   try {
+    const { goodsWithGst, gstSlab, quantity, purchasePrice, supplierId, withGstBill, productName, unit } = req.body;
+
+    // Create the supplier payment entry
     const payment = new SupplierPayment(req.body);
     await payment.save();
+
+    // If inventory needs to be updated
+    if (quantity && productName && purchasePrice && supplierId) {
+      const gstMultiplier = withGstBill && gstSlab !== 0 ? (1 + gstSlab / 100) : 1;
+      const totalCost = quantity * purchasePrice * gstMultiplier;
+
+      const inventoryItem = new Inventory({
+        productName,
+        quantity,
+        unit,
+        purchasePrice,
+        gstSlab,
+        withGstBill,
+        totalCost,
+        supplier: supplierId
+      });
+
+      await inventoryItem.save();
+    }
+
     res.status(201).json(payment);
   } catch (error) {
     res.status(400).json({ error: error.message });
