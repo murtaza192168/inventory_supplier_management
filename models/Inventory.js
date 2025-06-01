@@ -1,5 +1,4 @@
 // models/Inventory.js
-
 const mongoose = require('mongoose');
 
 const inventorySchema = new mongoose.Schema({
@@ -13,7 +12,7 @@ const inventorySchema = new mongoose.Schema({
   },
   unit: {
     type: String,
-    enum: ['kg', 'ltr', 'pc', 'ctn', 'mtr', 'pack', 'other'],
+    enum: ['kg', 'ltr', 'pcs', 'ctn', 'mtr', 'pack', 'other'],
     required: true
   },
   purchasePrice: {
@@ -27,10 +26,11 @@ const inventorySchema = new mongoose.Schema({
   },
   withGstBill: {
     type: Boolean,
-    default: false
+    required: true
   },
   totalCost: {
-    type: Number
+    type: Number,
+    required: true
   },
   supplier: {
     type: mongoose.Schema.Types.ObjectId,
@@ -43,13 +43,8 @@ const inventorySchema = new mongoose.Schema({
   }
 });
 
-// Pre-save middleware to calculate totalCost
-inventorySchema.pre('save', function (next) {
-  const gstMultiplier = this.withGstBill ? (1 + this.gstSlab / 100) : 1;
-  this.totalCost = this.quantity * this.purchasePrice * gstMultiplier;
-  next();
-});
+module.exports = mongoose.model('Inventory', inventorySchema);
 
-const Inventory = mongoose.model('Inventory', inventorySchema);
 
-module.exports = Inventory;
+
+

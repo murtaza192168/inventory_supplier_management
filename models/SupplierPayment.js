@@ -10,22 +10,17 @@ const supplierPaymentSchema = new mongoose.Schema({
   },
   paymentDate: {
     type: Date,
-    required: true
+    default: Date.now
   },
   amountPaid: {
     type: Number,
     required: true
   },
-  paymentMethod: {
-    type: String,
-    enum: ['Cash', 'Bank Transfer', 'UPI', 'Cheque', 'Other'],
-    default: 'Cash'
-  },
   goodsWithGst: {
     type: Boolean,
     required: true
   },
-  gstPercentage: {
+  gstSlab: {
     type: Number,
     enum: [0, 5, 12, 18],
     required: function () {
