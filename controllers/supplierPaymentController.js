@@ -1,77 +1,56 @@
-// supplierPaymentController.js
+// controllers/supplierPaymentController.js
+const Supplier = require('../models/Supplier');
 const SupplierPayment = require('../models/SupplierPayment');
 const Inventory = require('../models/Inventory');
 
-// Add a new payment
-exports.addPayment = async (req, res) => {
+// Add a new supplier payment and update supplier's balance
+exports.addSupplierPayment = async (req, res) => {
   try {
-    const { goodsWithGst, gstSlab, quantity, purchasePrice, supplierId, withGstBill, productName, unit } = req.body;
+    const { supplierId, amountPaid, paymentMode, paymentNote } = req.body;
 
-    // Create the supplier payment entry
-    const payment = new SupplierPayment(req.body);
-    await payment.save();
+    const supplier = await Supplier.findById(supplierId);
+    if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
 
-    // If inventory needs to be updated
-    if (quantity && productName && purchasePrice && supplierId) {
-      const gstMultiplier = withGstBill && gstSlab !== 0 ? (1 + gstSlab / 100) : 1;
-      const totalCost = quantity * purchasePrice * gstMultiplier;
+    if (amountPaid <= 0) return res.status(400).json({ error: 'Amount must be greater than 0' });
 
-      const inventoryItem = new Inventory({
-        productName,
-        quantity,
-        unit,
-        purchasePrice,
-        gstSlab,
-        withGstBill,
-        totalCost,
-        supplier: supplierId
-      });
-
-      await inventoryItem.save();
+    if (amountPaid > supplier.balance) {
+      return res.status(400).json({ error: 'Amount paid exceeds remaining balance' });
     }
 
-    res.status(201).json(payment);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+    const payment = new SupplierPayment({
+      supplierId,
+      amountPaid,
+      paymentMode,
+      paymentNote,
+      date: new Date(),
+    });
+    await payment.save();
+
+    supplier.balance -= amountPaid;
+    await supplier.save();
+
+    res.status(201).json({ message: 'Payment recorded', payment });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
 // Get all payments
-exports.getAllPayments = async (req, res) => {
+exports.getAllSupplierPayments = async (req, res) => {
   try {
-    const payments = await SupplierPayment.find().populate('supplierId', 'name phone');
+    const payments = await SupplierPayment.find().populate('supplierId', 'name');
     res.status(200).json(payments);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
 
-// Get payments for a specific supplier
+// Get all payments for a specific supplier
 exports.getPaymentsBySupplier = async (req, res) => {
   try {
     const payments = await SupplierPayment.find({ supplierId: req.params.supplierId });
     res.status(200).json(payments);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-// Update a payment
-exports.updatePayment = async (req, res) => {
-  try {
-    const updated = await SupplierPayment.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.status(200).json(updated);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
-
-// Delete a payment
-exports.deletePayment = async (req, res) => {
-  try {
-    await SupplierPayment.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: 'Payment deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

@@ -1,11 +1,12 @@
+// routes/supplierPaymentRoutes.js
 const express = require('express');
 const router = express.Router();
-const paymentController = require('../controllers/supplierPaymentController');
+const supplierPaymentController = require('../controllers/supplierPaymentController');
 
-router.post('/', paymentController.addPayment);
-router.get('/', paymentController.getAllPayments);
-router.get('/:supplierId', paymentController.getPaymentsBySupplier);
-router.patch('/:id', paymentController.updatePayment);
-router.delete('/:id', paymentController.deletePayment);
+router.post('/', supplierPaymentController.addPayment);
+router.get('/', supplierPaymentController.getAllPayments);
+router.get('/:supplierId', supplierPaymentController.getPaymentsBySupplier);
+router.put('/:id', supplierPaymentController.updatePayment);
+router.delete('/:id', supplierPaymentController.deletePayment);
 
 module.exports = router;
