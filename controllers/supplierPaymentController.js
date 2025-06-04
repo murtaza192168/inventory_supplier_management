@@ -1,7 +1,7 @@
 // controllers/supplierPaymentController.js
 const Supplier = require('../models/Supplier');
 const SupplierPayment = require('../models/SupplierPayment');
-const Inventory = require('../models/Inventory');
+// const Inventory = require('../models/Inventory');
 
 // Add a new supplier payment and update supplier's balance
 exports.addSupplierPayment = async (req, res) => {

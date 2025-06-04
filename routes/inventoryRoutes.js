@@ -1,20 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const inventoryController = require('../controllers/inventoryController');
+const Inventory = require('../models/Inventory');
 
-// Create new inventory item
-router.post('/', inventoryController.createInventory);
-
-// Get all inventory items
-router.get('/', inventoryController.getAllInventory);
-
-// Get inventory by ID
-router.get('/:id', inventoryController.getInventoryById);
-
-// Update inventory item
-router.put('/:id', inventoryController.updateInventory);
-
-// Delete inventory item
-router.delete('/:id', inventoryController.deleteInventory);
+// Get all inventory
+router.get('/', async (req, res) => {
+  try {
+    const inventory = await Inventory.find().populate('supplier');
+    res.status(200).json(inventory);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;
