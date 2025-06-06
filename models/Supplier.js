@@ -38,6 +38,7 @@ const supplierSchema = new mongoose.Schema({
     type: Number,
     default: 0 // This is the total pending payment to the supplier
   },
+  
   createdAt: {
     type: Date,
     default: Date.now
