@@ -49,9 +49,7 @@ exports.addSupplierPayment = async (req, res) => {
       return res.status(400).json({ error: 'Amount paid cannot exceed total amount' });
     }
 
-    // Update supplier balanceAmount
-    supplier.balanceAmount = Math.max(0, supplier.balanceAmount - amountPaid);
-    await supplier.save();
+   
 
     const payment = new SupplierPayment({
       supplierId,
@@ -62,12 +60,10 @@ exports.addSupplierPayment = async (req, res) => {
     });
     await payment.save();
 
-    // supplier.balance -= amountPaid;
-    // await supplier.save();
-    // If inventory needs to be updated
+    let totalCost = 0;
     if (quantity && productName && purchasePrice) {
       const gstMultiplier = withGstBill && gstSlab !== 0 ? (1 + gstSlab / 100) : 1;
-      const totalCost = quantity * purchasePrice * gstMultiplier;
+       totalCost = quantity * purchasePrice * gstMultiplier;
 
       const inventoryItem = new Inventory({
         productName,
@@ -82,8 +78,9 @@ exports.addSupplierPayment = async (req, res) => {
 
       await inventoryItem.save();
 
-      // Add to supplier balanceAmount
+      // Add the full cost to supplier again (this reverses the previous subtraction)
       supplier.balanceAmount += totalCost;
+      supplier.balanceAmount = Math.max(0, supplier.balanceAmount - amountPaid);
       await supplier.save();
     }
 

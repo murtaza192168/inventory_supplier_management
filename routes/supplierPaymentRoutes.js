@@ -6,7 +6,7 @@ const supplierPaymentController = require('../controllers/supplierPaymentControl
 router.post('/', supplierPaymentController.addSupplierPayment);
 router.get('/', supplierPaymentController.getAllSupplierPayments);
 router.get('/:supplierId', supplierPaymentController.getPaymentsBySupplier);
-// router.put('/:id', supplierPaymentController.updatePayment);
-// router.delete('/:id', supplierPaymentController.deletePayment);
+router.put('/:id', supplierPaymentController.updatePayment);
+router.delete('/:id', supplierPaymentController.deletePayment);
 
 module.exports = router;
