@@ -8,6 +8,11 @@ const supplierPaymentSchema = new mongoose.Schema({
     ref: 'Supplier',
     required: true
   },
+  productName: {
+  type: String,
+  trim: true
+},
+
   paymentDate: {
     type: Date,
     default: Date.now

@@ -91,14 +91,55 @@ exports.addSupplierPayment = async (req, res) => {
 };
 
 // Get all payments
+// Get all payments with optional filtering
 exports.getAllSupplierPayments = async (req, res) => {
   try {
-    const payments = await SupplierPayment.find().populate('supplierId', 'companyName contact');
+    const {
+      supplierName,
+      paymentMode,
+      paymentStartDate,
+      paymentEndDate,
+    } = req.query;
+
+    // Prepare dynamic query
+    const query = {};
+
+    // Filter by date range
+    if (paymentStartDate && paymentEndDate) {
+      query.date = {
+        $gte: new Date(paymentStartDate),
+        $lte: new Date(paymentEndDate),
+      };
+    }
+
+    // Filter by payment mode
+    if (paymentMode) {
+      query.paymentMode = paymentMode;
+    }
+
+    // Fetch payments with supplier populated
+    let payments = await SupplierPayment.find(query)
+      .populate({
+        path: 'supplierId',
+        select: 'companyName contact',
+      })
+      .sort({ date: -1 });
+
+    // Filter by supplier name after population
+    if (supplierName) {
+      payments = payments.filter((payment) =>
+        payment.supplierId?.companyName
+          ?.toLowerCase()
+          .includes(supplierName.toLowerCase())
+      );
+    }
+
     res.status(200).json(payments);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // Get all payments for a specific supplier
 exports.getPaymentsBySupplier = async (req, res) => {
