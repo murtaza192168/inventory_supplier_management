@@ -91,7 +91,7 @@ exports.addSupplierPayment = async (req, res) => {
 };
 
 // Get all payments
-// Get all payments with optional filtering
+// Get all payments with advanced filtering
 exports.getAllSupplierPayments = async (req, res) => {
   try {
     const {
@@ -99,12 +99,14 @@ exports.getAllSupplierPayments = async (req, res) => {
       paymentMode,
       paymentStartDate,
       paymentEndDate,
+      productName,
+      minAmountPaid,
+      maxAmountPaid
     } = req.query;
 
-    // Prepare dynamic query
     const query = {};
 
-    // Filter by date range
+    // Filter by payment date range
     if (paymentStartDate && paymentEndDate) {
       query.date = {
         $gte: new Date(paymentStartDate),
@@ -114,10 +116,17 @@ exports.getAllSupplierPayments = async (req, res) => {
 
     // Filter by payment mode
     if (paymentMode) {
-      query.paymentMode = paymentMode;
+      query.paymentMode = paymentMode.toLowerCase();
     }
 
-    // Fetch payments with supplier populated
+    // Filter by amountPaid range
+    if (minAmountPaid || maxAmountPaid) {
+      query.amountPaid = {};
+      if (minAmountPaid) query.amountPaid.$gte = Number(minAmountPaid);
+      if (maxAmountPaid) query.amountPaid.$lte = Number(maxAmountPaid);
+    }
+
+    // Initial fetch
     let payments = await SupplierPayment.find(query)
       .populate({
         path: 'supplierId',
@@ -125,12 +134,25 @@ exports.getAllSupplierPayments = async (req, res) => {
       })
       .sort({ date: -1 });
 
-    // Filter by supplier name after population
+    // Filter by supplier name (post population)
     if (supplierName) {
-      payments = payments.filter((payment) =>
+      payments = payments.filter(payment =>
         payment.supplierId?.companyName
           ?.toLowerCase()
           .includes(supplierName.toLowerCase())
+      );
+    }
+
+    // Filter by product name (through Inventory match)
+    if (productName) {
+      const inventories = await Inventory.find({
+        productName: { $regex: productName, $options: 'i' }
+      }).select('supplier');
+
+      const supplierIdsWithProduct = inventories.map(item => item.supplier.toString());
+
+      payments = payments.filter(payment =>
+        supplierIdsWithProduct.includes(payment.supplierId?._id?.toString())
       );
     }
 
@@ -139,6 +161,7 @@ exports.getAllSupplierPayments = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 
 // Get all payments for a specific supplier
