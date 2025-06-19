@@ -117,6 +117,8 @@ exports.getAllSupplierPayments = async (req, res) => {
     // Filter by payment mode
     if (paymentMode) {
       query.paymentMode = paymentMode.toLowerCase();
+      query.paymentMode = { $regex: new RegExp(`^${paymentMode}$`, 'i') };
+
     }
 
     // Filter by amountPaid range
