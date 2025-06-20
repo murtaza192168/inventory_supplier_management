@@ -101,7 +101,11 @@ exports.getAllSupplierPayments = async (req, res) => {
       paymentEndDate,
       productName,
       minAmountPaid,
-      maxAmountPaid
+      maxAmountPaid,
+      page = 1,
+      limit = 10,
+      sortBy = 'date',
+      order = 'desc'
     } = req.query;
 
     const query = {};
@@ -128,13 +132,12 @@ exports.getAllSupplierPayments = async (req, res) => {
       if (maxAmountPaid) query.amountPaid.$lte = Number(maxAmountPaid);
     }
 
-    // Initial fetch
+    // Initial fetch with pagination + sorting
     let payments = await SupplierPayment.find(query)
-      .populate({
-        path: 'supplierId',
-        select: 'companyName contact',
-      })
-      .sort({ date: -1 });
+      .populate({ path: 'supplierId', select: 'companyName contact' })
+      .sort({ [sortBy]: order === 'asc' ? 1 : -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
 
     // Filter by supplier name (post population)
     if (supplierName) {
