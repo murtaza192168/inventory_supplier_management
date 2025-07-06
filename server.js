@@ -19,6 +19,8 @@ const supplierRoutes = require('./routes/SupplierRoutes');
 const supplierPaymentRoutes = require('./routes/supplierPaymentRoutes');
 //Import Inventory Route
 const inventoryRoutes = require('./routes/inventoryRoutes');
+// Authentication and Authorization
+const authRoutes = require('./routes/authRoutes');
 // Middlewares
 app.use(cors());                           // Allow cross-origin requests
 app.use(express.json());                   // Allow receiving JSON data from frontend
@@ -43,6 +45,9 @@ mongoose.connect(process.env.MONGO_URL, {
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/payments', supplierPaymentRoutes);
 app.use('/inventory', inventoryRoutes);
+// Authentication and Authorization
+app.use('/api/auth', authRoutes);
+
 
 // Define a port (default to 5000 if not specified in .env)
 const PORT = process.env.PORT || 5000;
