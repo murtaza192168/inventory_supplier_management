@@ -3,6 +3,11 @@
 const mongoose = require('mongoose');
 
 const supplierPaymentSchema = new mongoose.Schema({
+  businessId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   supplierId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Supplier',

@@ -2,6 +2,11 @@
 const mongoose = require('mongoose');
 
 const inventorySchema = new mongoose.Schema({
+  businessId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   productName: {
     type: String,
     required: true
