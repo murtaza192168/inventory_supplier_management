@@ -57,6 +57,7 @@ exports.addSupplierPayment = async (req, res) => {
       paymentMode,
       paymentNote,
       date: new Date(),
+      businessId: req.businessId,
     });
     await payment.save();
 
@@ -73,7 +74,8 @@ exports.addSupplierPayment = async (req, res) => {
         gstSlab,
         withGstBill,
         totalCost,
-        supplier: supplierId
+        supplier: supplierId,
+        businessId: req.businessId
       });
 
       await inventoryItem.save();
@@ -108,7 +110,7 @@ exports.getAllSupplierPayments = async (req, res) => {
       order = 'desc'
     } = req.query;
 
-    const query = {};
+    const query = {businessId: req.businessId};
 
     // Filter by payment date range
     if (paymentStartDate && paymentEndDate) {
@@ -172,7 +174,7 @@ exports.getAllSupplierPayments = async (req, res) => {
 // Get all payments for a specific supplier
 exports.getPaymentsBySupplier = async (req, res) => {
   try {
-    const payments = await SupplierPayment.find({ supplierId: req.params.supplierId });
+    const payments = await SupplierPayment.find({ supplierId: req.params.supplierId, businessId: req.businessId });
     res.status(200).json(payments);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const Supplier = require('../models/Supplier');
+const authMiddleware = require('../middleware/authMiddleware');
 
 // Add new supplier
-router.post('/', async (req, res) => {
+router.post('/',authMiddleware, async (req, res) => {
   try {
     const { companyName, contact, gstNumber } = req.body;
 
@@ -29,9 +30,9 @@ router.post('/', async (req, res) => {
 });
 
 // Get all suppliers
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
-    const suppliers = await Supplier.find();
+    const suppliers = await Supplier.find({businessId: req.businessId});
     res.status(200).json(suppliers);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -39,12 +40,13 @@ router.get('/', async (req, res) => {
 });
 
 // Update supplier
-router.put('/:id', async (req, res) => {
+router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { gstNumber, contact } = req.body;
 
     const conflicting = await Supplier.findOne({
       _id: { $ne: req.params.id },
+      businessId: req.businessId,
       $or: [{ gstNumber }, { contact }]
     });
 
@@ -52,7 +54,7 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'GST Number or Contact already exists for another supplier' });
     }
 
-    const updated = await Supplier.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updated = await Supplier.findByIdAndUpdate(req.params.id, req.businessId, req.body, { new: true });
     res.status(200).json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
