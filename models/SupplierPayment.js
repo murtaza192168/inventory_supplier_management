@@ -22,6 +22,11 @@ const supplierPaymentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
+  invoiceNo: {
+    type: String,
+    required: true, // ✅ Make it required
+    match: /^\d{3}\/\d{2}-\d{2}$/, // ✅ Validate format like 001/24-25
+  },
   amountPaid: {
     type: Number,
     required: true

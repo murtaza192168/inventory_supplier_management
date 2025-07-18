@@ -18,7 +18,9 @@ exports.addSupplierPayment = async (req, res) => {
       amountPaid,
       totalAmount,
       paymentMode,       
-      paymentNote
+      paymentNote,
+      invoiceNo
+    
     } = req.body;
 
     const supplier = await Supplier.findById(supplierId);
@@ -49,6 +51,23 @@ exports.addSupplierPayment = async (req, res) => {
       return res.status(400).json({ error: 'Amount paid cannot exceed total amount' });
     }
 
+    // Invoice No. Format Validation
+const invoicePattern = /^\d{3}\/\d{2}-\d{2}$/;
+if (!invoicePattern.test(invoiceNo)) {
+  return res.status(400).json({ error: 'Invoice number format must be like 001/24-25' });
+}
+// ✅ Check for duplicate invoiceNo for the same supplier & business
+const duplicateInvoice = await SupplierPayment.findOne({
+  invoiceNo,
+  businessId: req.businessId,
+  supplierId
+});
+if (duplicateInvoice) {
+  return res.status(400).json({ error: 'Invoice number already exists for this supplier.' });
+}
+
+
+
    
 
     const payment = new SupplierPayment({
@@ -56,6 +75,7 @@ exports.addSupplierPayment = async (req, res) => {
       amountPaid,
       paymentMode,
       paymentNote,
+      invoiceNo,
       date: new Date(),
       businessId: req.businessId,
     });
