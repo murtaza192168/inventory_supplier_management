@@ -15,11 +15,12 @@ exports.addSupplierPayment = async (req, res) => {
       withGstBill,
       productName,
       unit,
+      invoiceNo,
       amountPaid,
       totalAmount,
       paymentMode,       
       paymentNote,
-      invoiceNo
+      
     
     } = req.body;
 
@@ -72,10 +73,11 @@ if (duplicateInvoice) {
 
     const payment = new SupplierPayment({
       supplierId,
+      invoiceNo,
       amountPaid,
       paymentMode,
       paymentNote,
-      invoiceNo,
+      
       date: new Date(),
       businessId: req.businessId,
     });
@@ -204,7 +206,7 @@ exports.getPaymentsBySupplier = async (req, res) => {
 // Update a payment
 exports.updatePayment = async (req, res) => {
   try {
-    const { amountPaid, gstSlab, goodsWithGst, totalAmount } = req.body;
+    const { amountPaid, gstSlab, goodsWithGst, totalAmount, invoiceNo, supplierId } = req.body;
 
     // Validate GST slab
     const validGstSlabs = [0, 5, 12, 18];
@@ -218,8 +220,8 @@ exports.updatePayment = async (req, res) => {
     }
 
     // Prevent zero or negative payment
-    if (amountPaid !== undefined && amountPaid <= 0) {
-      return res.status(400).json({ error: 'Payment amount must be greater than 0' });
+    if (amountPaid !== undefined && amountPaid < 0) {
+      return res.status(400).json({ error: 'Please mention the amount paid' });
     }
 
     // Optional: amountPaid shouldn't exceed totalAmount
@@ -227,7 +229,32 @@ exports.updatePayment = async (req, res) => {
       return res.status(400).json({ error: 'Amount paid cannot exceed total amount' });
     }
 
+    // Check for duplicate invoice number if it's being updated
+    if (invoiceNo) {
+      const duplicateInvoice = await SupplierPayment.findOne({
+        _id: { $ne: req.params.id }, // Exclude current payment
+        invoiceNo,
+        supplierId,
+        businessId: req.businessId,
+      });
+
+      if (duplicateInvoice) {
+        return res.status(400).json({ error: 'Invoice number already exists for this supplier.' });
+      }
+
+      // Validate invoice format: "number/yy-yy"
+      const invoicePattern = /^\d+\/\d{2}-\d{2}$/;
+      if (!invoicePattern.test(invoiceNo)) {
+        return res.status(400).json({ error: 'Invoice number must be in format "number/yy-yy"' });
+      }
+    }
+
+
     const updated = await SupplierPayment.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updated) {
+  return res.status(404).json({ error: 'Payment not found' });
+}
+
     res.status(200).json(updated);
   } catch (error) {
     res.status(400).json({ error: error.message });
