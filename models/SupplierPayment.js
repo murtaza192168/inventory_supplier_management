@@ -13,10 +13,29 @@ const supplierPaymentSchema = new mongoose.Schema({
     ref: 'Supplier',
     required: true
   },
-  productName: {
-  type: String,
-  trim: true
-},
+  // array of items
+  items: [
+    {
+      productName: { type: String, required: true },
+      quantity: { type: Number, required: true },
+      unit: { type: String },
+      purchasePrice: { type: Number, required: true },
+      goodsWithGst: { type: Boolean },
+      gstSlab: {
+        type: Number,
+        enum: [0, 5, 12, 18],
+        required: function () {
+          return this.goodsWithGst === true;
+        }
+      },
+      totalCost: { type: Number },
+      withGstBill: { type: Boolean }
+    }
+  ],
+  amountPaid: {
+    type: Number,
+    required: true
+  },
 
   paymentDate: {
     type: Date,
@@ -25,17 +44,18 @@ const supplierPaymentSchema = new mongoose.Schema({
   invoiceNo: {
     type: String,
     required: true, // ✅ Make it required
-    match: /^\d{3}\/\d{2}-\d{2}$/, // ✅ Validate format like 001/24-25
+    match: /^\d{4}\/\d{2}-\d{2}$/, // ✅ Validate format like 0001/24-25
   },
-  amountPaid: {
-    type: Number,
-    required: true
-  },
+  
   paymentMode: {
     type: String,
    enum: ['Cash', 'Cheque', 'Bank_Transfer', 'UPI'],
     required: true
   },
+  paymentDate: {
+  type: Date,
+  required: true
+},
   goodsWithGst: {
     type: Boolean,
     

@@ -7,7 +7,7 @@ const  verifyToken  = require('../middleware/authMiddleware');
 router.post('/', verifyToken, supplierPaymentController.addSupplierPayment);
 router.get('/', verifyToken, supplierPaymentController.getAllSupplierPayments);
 router.get('/:supplierId',verifyToken, supplierPaymentController.getPaymentsBySupplier);
-router.put('/:id', verifyToken, supplierPaymentController.updatePayment);
+router.put('/updateItem', verifyToken, supplierPaymentController.updatePaymentItem);
 router.delete('/:id',verifyToken, supplierPaymentController.deletePayment);
 
 module.exports = router;

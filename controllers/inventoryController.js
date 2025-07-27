@@ -1,15 +1,15 @@
 const Inventory = require('../models/Inventory');
 
 // Add new inventory item
-exports.createInventory = async (req, res) => {
-  try {
-    const inventory = new Inventory(req.body, req.businessId);
-    await inventory.save();
-    res.status(201).json(inventory);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-};
+// exports.createInventory = async (req, res) => {
+//   try {
+//     const inventory = new Inventory(req.body, req.businessId);
+//     await inventory.save();
+//     res.status(201).json(inventory);
+//   } catch (error) {
+//     res.status(400).json({ error: error.message });
+//   }
+// };
 
 // Get all inventory items
 exports.getAllInventory = async (req, res) => {

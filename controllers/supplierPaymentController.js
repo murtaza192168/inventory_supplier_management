@@ -4,115 +4,158 @@ const SupplierPayment = require('../models/SupplierPayment');
 const Inventory = require('../models/Inventory');
 
 // Add a new supplier payment and update supplier's balance
+// controllers/supplierPaymentController.js
+
 exports.addSupplierPayment = async (req, res) => {
   try {
     const {
-      goodsWithGst,
-      gstSlab,
-      quantity,
-      purchasePrice,
       supplierId,
-      withGstBill,
-      productName,
-      unit,
-      invoiceNo,
       amountPaid,
-      totalAmount,
-      paymentMode,       
+      paymentMode,
       paymentNote,
-      
-    
+      items,
+      invoiceNo = req.body.invoiceNo?.trim(),
+      paymentDate
     } = req.body;
+
+    if (!req.businessId) return res.status(401).json({ error: 'No token / business ID provided' });
+
+    if (amountPaid > 0 && !paymentDate) {
+      return res.status(400).json({ error: 'Payment date is required when amountPaid is greater than 0' });
+    }
 
     const supplier = await Supplier.findById(supplierId);
     if (!supplier) return res.status(404).json({ error: 'Supplier not found' });
 
-    // Validate GST slab
-    const validGstSlabs = [0, 5, 12, 18];
-    if (!validGstSlabs.includes(gstSlab)) {
-      return res.status(400).json({ error: 'Invalid GST slab value' });
+    const invoicePattern = /^\d{4}\/\d{2}-\d{2}$/;
+    if (!invoicePattern.test(invoiceNo)) {
+      return res.status(400).json({ error: 'Invoice number must be in format "0001/24-25"' });
     }
 
-    // Check for invalid GST + bill combo
-    if (gstSlab !== 0 && !goodsWithGst) {
-      return res.status(400).json({ error: 'GST slab is applied but goods marked as without GST bill' });
+    if (amountPaid !== undefined && amountPaid < 0) {
+      return res.status(400).json({ error: 'Amount paid cannot be negative' });
     }
+ 
 
 
-    if (amountPaid <= 0) return res.status(400).json({ error: 'Amount must be greater than 0' });
+    let totalAmount = 0;
+       // Check total due across this invoice + previous supplier balance
+const currentOutstanding = supplier.balanceAmount + totalAmount;
 
-    // Auto-calculate totalAmount if not provided and GST is applicable
-    let finalTotalAmount = totalAmount;
-    if (!totalAmount && gstSlab !== 0) {
-      finalTotalAmount = amountPaid * (1 + gstSlab / 100);
-    }
-
-    // Optional: amountPaid shouldn't exceed totalAmount
-    if (finalTotalAmount && amountPaid > finalTotalAmount) {
-      return res.status(400).json({ error: 'Amount paid cannot exceed total amount' });
-    }
-
-    // Invoice No. Format Validation
-const invoicePattern = /^\d{3}\/\d{2}-\d{2}$/;
-if (!invoicePattern.test(invoiceNo)) {
-  return res.status(400).json({ error: 'Invoice number format must be like 001/24-25' });
+// Prevent overpayment beyond actual due
+if (amountPaid > currentOutstanding) {
+  return res.status(400).json({
+    error: `Amount paid (${amountPaid}) exceeds current outstanding balance (${currentOutstanding}).`
+  });
 }
-// ✅ Check for duplicate invoiceNo for the same supplier & business
-const duplicateInvoice = await SupplierPayment.findOne({
-  invoiceNo,
-  businessId: req.businessId,
-  supplierId
-});
-if (duplicateInvoice) {
-  return res.status(400).json({ error: 'Invoice number already exists for this supplier.' });
-}
+    const processedItems = [];
 
+    if (items && items.length > 0) {
+      for (const item of items) {
+        const {
+          productName,
+          quantity,
+          unit,
+          purchasePrice,
+          goodsWithGst,
+          gstSlab,
+          withGstBill
+        } = item;
 
+        if (!productName || !quantity || !purchasePrice) {
+          return res.status(400).json({ error: 'Each item must include productName, quantity, and purchasePrice' });
+        }
 
-   
+        const validGstSlabs = [0, 5, 12, 18];
+        if (gstSlab !== undefined && !validGstSlabs.includes(gstSlab)) {
+          return res.status(400).json({ error: 'Invalid GST slab value' });
+        }
 
-    const payment = new SupplierPayment({
-      supplierId,
+        if (gstSlab !== undefined && gstSlab !== 0 && goodsWithGst === false) {
+          return res.status(400).json({ error: 'GST slab is applied but goods marked as without GST bill' });
+        }
+
+        const gstMultiplier = withGstBill && gstSlab ? (1 + gstSlab / 100) : 1;
+        const totalCost = quantity * purchasePrice * gstMultiplier;
+        totalAmount += totalCost;
+
+        const inventoryItem = new Inventory({
+          productName,
+          quantity,
+          unit,
+          purchasePrice,
+          gstSlab,
+          withGstBill,
+          totalCost,
+          supplier: supplierId,
+          businessId: req.businessId
+        });
+        await inventoryItem.save();
+
+        processedItems.push({
+          productName,
+          quantity,
+          unit,
+          purchasePrice,
+          goodsWithGst,
+          gstSlab,
+          withGstBill,
+          totalCost
+        });
+      }
+    }
+
+    // 🔁 Check if invoice already exists
+    let payment = await SupplierPayment.findOne({
       invoiceNo,
-      amountPaid,
-      paymentMode,
-      paymentNote,
-      
-      date: new Date(),
-      businessId: req.businessId,
+      supplierId,
+      businessId: req.businessId
     });
-    await payment.save();
 
-    let totalCost = 0;
-    if (quantity && productName && purchasePrice) {
-      const gstMultiplier = withGstBill && gstSlab !== 0 ? (1 + gstSlab / 100) : 1;
-       totalCost = quantity * purchasePrice * gstMultiplier;
+    if (payment) {
+      // Partial payment / update
+      payment.amountPaid += amountPaid;
+      payment.remainingBalance -= amountPaid;
 
-      const inventoryItem = new Inventory({
-        productName,
-        quantity,
-        unit,
-        purchasePrice,
-        gstSlab,
-        withGstBill,
-        totalCost,
-        supplier: supplierId,
-        businessId: req.businessId
+      if (processedItems.length > 0) {
+        payment.items.push(...processedItems); // Add new items if given
+      }
+
+      payment.paymentNote = paymentNote || payment.paymentNote;
+      payment.paymentMode = paymentMode || payment.paymentMode;
+      payment.paymentDate = paymentDate || payment.paymentDate;
+
+      await payment.save();
+    } else {
+      // New invoice & payment
+      payment = new SupplierPayment({
+        supplierId,
+        invoiceNo,
+        amountPaid,
+        paymentMode,
+        paymentNote,
+        paymentDate,
+        items: processedItems,
+        businessId: req.businessId,
+        remainingBalance: totalAmount - amountPaid
       });
-
-      await inventoryItem.save();
-
-      // Add the full cost to supplier again (this reverses the previous subtraction)
-      supplier.balanceAmount += totalCost;
-      supplier.balanceAmount = Math.max(0, supplier.balanceAmount - amountPaid);
-      await supplier.save();
+      await payment.save();
     }
 
-    res.status(201).json({ message: 'Payment recorded', payment });
+    // ✅ Update supplier balance
+    supplier.balanceAmount += totalAmount;
+    supplier.balanceAmount -= amountPaid;
+    await supplier.save();
+
+    res.status(201).json({ message: 'Payment recorded successfully', payment });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
+
+
 
 // Get all payments
 // Get all payments with advanced filtering
@@ -132,7 +175,7 @@ exports.getAllSupplierPayments = async (req, res) => {
       order = 'desc'
     } = req.query;
 
-    const query = {businessId: req.businessId};
+    const query = { businessId: req.businessId };
 
     // Filter by payment date range
     if (paymentStartDate && paymentEndDate) {
@@ -144,9 +187,7 @@ exports.getAllSupplierPayments = async (req, res) => {
 
     // Filter by payment mode
     if (paymentMode) {
-      query.paymentMode = paymentMode.toLowerCase();
       query.paymentMode = { $regex: new RegExp(`^${paymentMode}$`, 'i') };
-
     }
 
     // Filter by amountPaid range
@@ -172,101 +213,128 @@ exports.getAllSupplierPayments = async (req, res) => {
       );
     }
 
-    // Filter by product name (through Inventory match)
+    // ✅ NEW: Filter by productName from the `items` array inside SupplierPayment
     if (productName) {
-      const inventories = await Inventory.find({
-        productName: { $regex: productName, $options: 'i' }
-      }).select('supplier');
-
-      const supplierIdsWithProduct = inventories.map(item => item.supplier.toString());
-
+      const lowerProductName = productName.toLowerCase();
       payments = payments.filter(payment =>
-        supplierIdsWithProduct.includes(payment.supplierId?._id?.toString())
+        payment.items?.some(item =>
+          item.productName?.toLowerCase().includes(lowerProductName)
+        )
       );
     }
 
     res.status(200).json(payments);
   } catch (err) {
+    console.error("Error fetching supplier payments:", err);
     res.status(500).json({ error: err.message });
   }
 };
+
+
 
 
 
 // Get all payments for a specific supplier
 exports.getPaymentsBySupplier = async (req, res) => {
   try {
-    const payments = await SupplierPayment.find({ supplierId: req.params.supplierId, businessId: req.businessId });
+    const { financialYear } = req.query;
+
+    const query = {
+      supplierId: req.params.supplierId,
+      businessId: req.businessId,
+    };
+    if (financialYear) {
+      query.financialYear = financialYear;
+    }
+    const payments = await SupplierPayment.find(query).sort({ date: -1 });
     res.status(200).json(payments);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Update a payment
-exports.updatePayment = async (req, res) => {
+// Update item array in SupplierPayment and reflect in Inventory + Supplier balance
+exports.updatePaymentItem = async (req, res) => {
   try {
-    const { amountPaid, gstSlab, goodsWithGst, totalAmount, invoiceNo, supplierId } = req.body;
+    const { paymentId, itemId, newQuantity, newPurchasePrice } = req.body;
 
-    // Validate GST slab
-    const validGstSlabs = [0, 5, 12, 18];
-    if (gstSlab !== undefined && !validGstSlabs.includes(gstSlab)) {
-      return res.status(400).json({ error: 'Invalid GST slab value' });
+    if (!paymentId || !itemId) {
+      return res.status(400).json({ error: 'paymentId and itemId are required' });
     }
 
-    // Check for invalid GST + bill combo
-    if (gstSlab !== undefined && gstSlab !== 0 && goodsWithGst === false) {
-      return res.status(400).json({ error: 'GST slab is applied but goods marked as without GST bill' });
+    const payment = await SupplierPayment.findOne({ _id: paymentId, businessId: req.businessId });
+    if (!payment) return res.status(404).json({ error: 'Payment not found' });
+
+    const itemIndex = payment.items.findIndex(item => item._id.toString() === itemId);
+    if (itemIndex === -1) return res.status(404).json({ error: 'Item not found in payment' });
+
+    const item = payment.items[itemIndex];
+    const oldTotal = item.totalCost;
+
+    // Apply changes
+    if (newQuantity !== undefined) item.quantity = newQuantity;
+    if (newPurchasePrice !== undefined) item.purchasePrice = newPurchasePrice;
+
+    const gstMultiplier = item.withGstBill && item.gstSlab ? (1 + item.gstSlab / 100) : 1;
+    item.totalCost = item.quantity * item.purchasePrice * gstMultiplier;
+
+    const costDifference = item.totalCost - oldTotal;
+    payment.remainingBalance += costDifference;
+    await payment.save();
+
+    // Update the inventory item too
+    const inventoryItem = await Inventory.findOne({
+      productName: item.productName,
+      supplier: payment.supplierId,
+      businessId: req.businessId,
+      totalCost: oldTotal // match old cost to find exact record
+    });
+
+    if (inventoryItem) {
+      inventoryItem.quantity = item.quantity;
+      inventoryItem.purchasePrice = item.purchasePrice;
+      inventoryItem.totalCost = item.totalCost;
+      await inventoryItem.save();
     }
 
-    // Prevent zero or negative payment
-    if (amountPaid !== undefined && amountPaid < 0) {
-      return res.status(400).json({ error: 'Please mention the amount paid' });
+    // Update supplier balance
+    const supplier = await Supplier.findById(payment.supplierId);
+    if (supplier) {
+      supplier.balanceAmount += costDifference;
+      await supplier.save();
     }
 
-    // Optional: amountPaid shouldn't exceed totalAmount
-    if (totalAmount && amountPaid > totalAmount) {
-      return res.status(400).json({ error: 'Amount paid cannot exceed total amount' });
-    }
+    res.status(200).json({
+      message: 'Item updated successfully in payment & inventory',
+      updatedItem: item,
+      updatedRemainingBalance: payment.remainingBalance,
+      updatedSupplierBalance: supplier?.balanceAmount || 0
+    });
 
-    // Check for duplicate invoice number if it's being updated
-    if (invoiceNo) {
-      const duplicateInvoice = await SupplierPayment.findOne({
-        _id: { $ne: req.params.id }, // Exclude current payment
-        invoiceNo,
-        supplierId,
-        businessId: req.businessId,
-      });
-
-      if (duplicateInvoice) {
-        return res.status(400).json({ error: 'Invoice number already exists for this supplier.' });
-      }
-
-      // Validate invoice format: "number/yy-yy"
-      const invoicePattern = /^\d+\/\d{2}-\d{2}$/;
-      if (!invoicePattern.test(invoiceNo)) {
-        return res.status(400).json({ error: 'Invoice number must be in format "number/yy-yy"' });
-      }
-    }
-
-
-    const updated = await SupplierPayment.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updated) {
-  return res.status(404).json({ error: 'Payment not found' });
-}
-
-    res.status(200).json(updated);
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
+
+
+
 
 // Delete a payment
+// Delete a specific payment by ID
 exports.deletePayment = async (req, res) => {
   try {
-    await SupplierPayment.findByIdAndDelete(req.params.id);
-    res.status(200).json({ message: 'Payment deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+    const deleted = await SupplierPayment.findOneAndDelete({
+      _id: req.params.id,
+      businessId: req.businessId
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Payment not found or already deleted' });
+    }
+
+    res.status(200).json({ message: 'Supplier payment deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };
+
