@@ -5,6 +5,9 @@ const Inventory = require('../models/Inventory');
 
 // Add a new supplier payment and update supplier's balance
 // controllers/supplierPaymentController.js
+function roundToTwo(num) {
+  return Math.round(num * 100) / 100;
+}
 
 exports.addSupplierPayment = async (req, res) => {
   try {
@@ -40,7 +43,7 @@ exports.addSupplierPayment = async (req, res) => {
 
     let totalAmount = 0;
        // Check total due across this invoice + previous supplier balance
-const currentOutstanding = supplier.balanceAmount + totalAmount;
+const currentOutstanding = roundToTwo(supplier.balanceAmount + totalAmount);
 
 // Prevent overpayment beyond actual due
 if (amountPaid > currentOutstanding) {
@@ -114,8 +117,8 @@ if (amountPaid > currentOutstanding) {
 
     if (payment) {
       // Partial payment / update
-      payment.amountPaid += amountPaid;
-      payment.remainingBalance -= amountPaid;
+      payment.amountPaid = roundToTwo(payment.amountPaid + amountPaid);
+      payment.remainingBalance = roundToTwo(payment.remainingBalance - remainingBalance);
 
       if (processedItems.length > 0) {
         payment.items.push(...processedItems); // Add new items if given
@@ -137,14 +140,14 @@ if (amountPaid > currentOutstanding) {
         paymentDate,
         items: processedItems,
         businessId: req.businessId,
-        remainingBalance: totalAmount - amountPaid
+        remainingBalance: roundToTwo(totalAmount - amountPaid)
       });
       await payment.save();
     }
 
     // ✅ Update supplier balance
-    supplier.balanceAmount += totalAmount;
-    supplier.balanceAmount -= amountPaid;
+    supplier.balanceAmount = roundToTwo(supplier.balanceAmount + totalAmount - amountPaid);
+
     await supplier.save();
 
     res.status(201).json({ message: 'Payment recorded successfully', payment });
@@ -276,10 +279,10 @@ exports.updatePaymentItem = async (req, res) => {
     if (newPurchasePrice !== undefined) item.purchasePrice = newPurchasePrice;
 
     const gstMultiplier = item.withGstBill && item.gstSlab ? (1 + item.gstSlab / 100) : 1;
-    item.totalCost = item.quantity * item.purchasePrice * gstMultiplier;
+    item.totalCost = roundToTwo(item.quantity * item.purchasePrice * gstMultiplier);
 
-    const costDifference = item.totalCost - oldTotal;
-    payment.remainingBalance += costDifference;
+    const costDifference = roundToTwo(item.totalCost - oldTotal);
+    payment.remainingBalance = roundToTwo(payment.remainingBalance + costDifference);
     await payment.save();
 
     // Update the inventory item too
@@ -293,19 +296,21 @@ exports.updatePaymentItem = async (req, res) => {
     if (inventoryItem) {
       inventoryItem.quantity = item.quantity;
       inventoryItem.purchasePrice = item.purchasePrice;
-      inventoryItem.totalCost = item.totalCost;
+      inventoryItem.totalCost = roundToTwo(item.totalCost);
       await inventoryItem.save();
     }
 
     // Update supplier balance
     const supplier = await Supplier.findById(payment.supplierId);
     if (supplier) {
-      supplier.balanceAmount += costDifference;
+      supplier.balanceAmount = roundToTwo(supplier.balanceAmount + costDifference);
       await supplier.save();
     }
 
     res.status(200).json({
+      
       message: 'Item updated successfully in payment & inventory',
+      
       updatedItem: item,
       updatedRemainingBalance: payment.remainingBalance,
       updatedSupplierBalance: supplier?.balanceAmount || 0
